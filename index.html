@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mutaba'ah - Kontrol Hafalan</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .toast-enter { animation: toastEnter 0.3s ease-out forwards; }
+        .toast-exit { animation: toastExit 0.3s ease-in forwards; }
+        @keyframes toastEnter { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes toastExit { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-100%); opacity: 0; } }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased h-screen w-full overflow-hidden relative">
+
+    <!-- Splash Screen -->
+    <div id="splash-screen" class="fixed inset-0 bg-amber-700 flex flex-col items-center justify-center z-[100] transition-opacity duration-500">
+        <h1 class="text-3xl font-bold text-white mb-2 text-center px-4">Kontrol Hafalan</h1>
+        <p class="text-amber-100 text-lg text-center px-4">Ma'had Imam Bukhari Makassar</p>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast" class="fixed top-4 left-1/2 transform -translate-x-1/2 z-[110] hidden">
+        <div class="bg-amber-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3">
+            <i class="fas fa-check-circle"></i>
+            <span id="toast-message" class="font-medium">Pesan</span>
+        </div>
+    </div>
+
+    <!-- PORTAL PUBLIK (UNTUK ORANG TUA - TANPA LOGIN) -->
+    <div id="public-container" class="flex flex-col h-full w-full hidden bg-[#B8860B]">
+        <header class="bg-amber-700 text-white px-5 py-4 flex items-center justify-between shadow-md sticky top-0 z-10">
+            <div class="flex items-center space-x-3">
+                <img src="logo.png" alt="Logo" class="w-8 h-8 object-contain bg-white rounded-md p-0.5">
+                <h1 class="text-lg font-bold">Mutaba'ah</h1>
+            </div>
+            <button onclick="showLoginScreen()" class="bg-white text-amber-700 px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-amber-50 shadow-sm transition-colors">
+                <i class="fas fa-lock mr-1.5"></i>Login Ustadz
+            </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto p-4 md:p-8 w-full max-w-4xl mx-auto">
+            <div class="text-center mb-8 mt-4">
+                <h2 class="text-2xl md:text-3xl font-bold text-white drop-shadow-md mb-2">Cek Perkembangan Hafalan</h2>
+                <p class="text-amber-100 text-sm md:text-base">Masukkan nama ananda untuk melihat riwayat setoran</p>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl shadow-lg mb-6 flex space-x-3 border border-yellow-200">
+                <div class="flex-1 relative">
+                    <i class="fas fa-search absolute left-4 top-3.5 text-gray-400"></i>
+                    <input type="text" id="search-santri" placeholder="Ketik nama santri..." class="w-full pl-10 pr-4 py-3 rounded-lg border border-yellow-300 focus:ring-2 focus:ring-amber-500 outline-none bg-yellow-50 text-gray-700 font-medium">
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-xl border border-yellow-100 overflow-hidden min-h-[300px]">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-amber-100 text-amber-800 border-b border-amber-200">
+                                <th class="p-4 font-bold text-sm whitespace-nowrap">Tanggal</th>
+                                <th class="p-4 font-bold text-sm">Nama Santri</th>
+                                <th class="p-4 font-bold text-sm">Capaian</th>
+                                <th class="p-4 font-bold text-sm text-center">Nilai</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body-public" class="divide-y divide-gray-100 text-sm">
+                            <!-- Data akan dirender dari JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCREEN LOGIN (KHUSUS ADMIN) -->
+    <div id="login-container" class="fixed inset-0 bg-[#B8860B] flex flex-col items-center justify-center z-[90] hidden">
+        <button onclick="hideLoginScreen()" class="absolute top-6 left-6 text-white hover:text-amber-200 flex items-center font-medium">
+            <i class="fas fa-arrow-left mr-2"></i> Kembali
+        </button>
+
+        <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md mx-4 border border-yellow-200">
+            <div class="text-center mb-6">
+                <img src="logo.png" alt="Logo" class="w-20 h-20 mx-auto mb-4 object-contain drop-shadow-md">
+                <h2 class="text-2xl font-bold text-yellow-800" id="auth-title">Portal Ustadz</h2>
+                <p class="text-yellow-600 text-sm">Silakan login untuk menginput data</p>
+            </div>
+
+            <form id="form-login" class="space-y-4 block">
+                <div>
+                    <label class="block text-sm font-semibold text-yellow-700 mb-1">Username</label>
+                    <input type="text" id="login-username" required class="w-full px-4 py-3 rounded-xl border border-yellow-300 focus:ring-2 focus:ring-amber-500 outline-none bg-yellow-50">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-yellow-700 mb-1">PIN</label>
+                    <input type="password" id="login-pin" required class="w-full px-4 py-3 rounded-xl border border-yellow-300 focus:ring-2 focus:ring-amber-500 outline-none bg-yellow-50">
+                </div>
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md mt-2">Masuk</button>
+                <p class="text-center text-sm text-yellow-600 mt-4">Belum punya akun admin? <a href="#" onclick="toggleAuth('register')" class="text-amber-600 font-bold hover:underline">Daftar</a></p>
+            </form>
+
+            <form id="form-register" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-sm font-semibold text-yellow-700 mb-1">Username Baru</label>
+                    <input type="text" id="reg-username" required class="w-full px-4 py-3 rounded-xl border border-yellow-300 focus:ring-2 focus:ring-amber-500 outline-none bg-yellow-50">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-yellow-700 mb-1">PIN (Min 4 Angka)</label>
+                    <input type="password" id="reg-pin" required minlength="4" class="w-full px-4 py-3 rounded-xl border border-yellow-300 focus:ring-2 focus:ring-amber-500 outline-none bg-yellow-50">
+                </div>
+                <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-md mt-2">Buat Akun Admin</button>
+                <p class="text-center text-sm text-yellow-600 mt-4">Batal daftar? <a href="#" onclick="toggleAuth('login')" class="text-amber-600 font-bold hover:underline">Masuk</a></p>
+            </form>
+        </div>
+    </div>
+
+    <!-- PORTAL ADMIN (SETELAH LOGIN) -->
+    <div id="admin-container" class="flex h-full w-full hidden bg-[#B8860B]">
+        <!-- Sidebar Desktop -->
+        <aside class="hidden md:flex flex-col w-64 bg-amber-700 text-white h-full shadow-xl z-20">
+            <div class="p-6 border-b border-amber-600 flex items-center space-x-3">
+                <div class="bg-white p-1 rounded-lg">
+                    <img src="logo.png" alt="Logo" class="w-7 h-7 object-contain">
+                </div>
+                <h1 class="text-lg font-bold tracking-wide">Mutaba'ah</h1>
+            </div>
+            
+            <nav class="flex-1 px-4 py-6 space-y-2">
+                <p class="text-xs font-semibold text-amber-300 mb-3 px-2 uppercase tracking-wider">Menu Admin</p>
+                <button onclick="switchAdminTab('dashboard')" id="nav-desktop-dashboard" class="nav-btn-desktop w-full flex items-center space-x-3 px-4 py-3 rounded-xl bg-amber-800 text-white font-medium transition-colors"><i class="fas fa-chart-pie w-5"></i><span>Dasbor</span></button>
+                <button onclick="switchAdminTab('input')" id="nav-desktop-input" class="nav-btn-desktop w-full flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-amber-600/50 text-amber-100 font-medium transition-colors"><i class="fas fa-microphone-lines w-5"></i><span>Input Setoran</span></button>
+                <button onclick="switchAdminTab('riwayat')" id="nav-desktop-riwayat" class="nav-btn-desktop w-full flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-amber-600/50 text-amber-100 font-medium transition-colors"><i class="fas fa-list-check w-5"></i><span>Riwayat Global</span></button>
+            </nav>
+
+            <div class="p-4 border-t border-amber-600 flex flex-col space-y-3 bg-amber-800/30">
+                <div class="text-sm text-amber-100 text-center flex flex-col">
+                    <span class="text-xs text-amber-300 uppercase font-bold">Admin / Ustadz</span>
+                    <span class="font-medium admin-display-name text-lg">Pengguna</span>
+                </div>
+                <button onclick="logoutAdmin()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-white transition-colors text-sm font-bold shadow-sm"><i class="fas fa-sign-out-alt"></i><span>Keluar</span></button>
+            </div>
+        </aside>
+
+        <!-- Main Content Admin -->
+        <main class="flex-1 flex flex-col h-full w-full relative">
+            <header class="md:hidden bg-amber-700 text-white px-5 py-4 flex items-center justify-between shadow-md z-10 sticky top-0">
+                <div class="flex items-center space-x-3">
+                    <img src="logo.png" alt="Logo" class="w-7 h-7 object-contain bg-white rounded-md p-0.5">
+                    <h1 class="text-lg font-bold">Portal Admin</h1>
+                </div>
+                <button onclick="logoutAdmin()" class="w-8 h-8 rounded-full bg-red-500 flex items-center justify-center hover:bg-red-600 shadow-sm"><i class="fas fa-sign-out-alt text-sm text-white"></i></button>
+            </header>
+
+            <div class="flex-1 overflow-y-auto no-scrollbar pb-24 md:pb-6 p-4 md:p-8 w-full max-w-5xl mx-auto">
+                <section id="view-dashboard" class="admin-view animate-fade-in block">
+                    <h2 class="text-2xl font-bold text-white mb-6 drop-shadow-md">Ahlan wa Sahlan, <span class="admin-display-name">Ustadz</span>!</h2>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center justify-center">
+                            <i class="fas fa-database text-3xl text-amber-500 mb-2"></i>
+                            <h3 class="text-2xl font-bold text-gray-800" id="stat-total-setoran">0</h3>
+                            <p class="text-sm text-gray-500 text-center">Total Setoran<br>Tersimpan</p>
+                        </div>
+                        <div class="bg-white p-5 rounded-2xl shadow-sm border border-yellow-100 flex flex-col items-center justify-center cursor-pointer hover:bg-yellow-50 transition-colors" onclick="switchAdminTab('input')">
+                            <i class="fas fa-plus-circle text-3xl text-emerald-500 mb-2"></i>
+                            <h3 class="text-lg font-bold text-gray-800 mt-1">Input Baru</h3>
+                            <p class="text-xs text-gray-500">Klik di sini</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="view-input" class="admin-view hidden">
+                    <h2 class="text-2xl font-bold text-white mb-6 drop-shadow-md">Input Setoran Santri</h2>
+                    <div class="bg-white rounded-2xl shadow-sm border border-yellow-100 p-6">
+                        <form id="form-setoran" class="space-y-5">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div><label class="block text-sm font-semibold mb-1">Nama Lengkap Santri *</label><input type="text" id="input-nama" required class="w-full px-4 py-2.5 rounded-lg border border-yellow-300 focus:ring-2 focus:ring-amber-500 outline-none"></div>
+                                <div><label class="block text-sm font-semibold mb-1">Jenis Setoran *</label>
+                                    <select id="input-jenis" required class="w-full px-4 py-2.5 rounded-lg border border-yellow-300 focus:ring-2 focus:ring-amber-500 outline-none">
+                                        <option value="Ziyadah">Ziyadah (Hafalan Baru)</option>
+                                        <option value="Murojaah">Murojaah (Pengulangan)</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Pilihan Surah & Ayat Otomatis -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-sm font-semibold mb-1">Surah *</label>
+                                    <select id="input-surah" required class="w-full px-4 py-2.5 rounded-lg border border-yellow-300 focus:ring-2 focus:ring-amber-500 outline-none bg-white">
+                                        <option value="">Pilih Surah...</option>
+                                        <!-- Options Surah akan dimuat via JS -->
+                                    </select>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label class="block text-sm font-semibold mb-1">Dari Ayat *</label>
+                                        <select id="input-ayat-awal" required class="w-full px-4 py-2.5 rounded-lg border border-yellow-300 focus:ring-2 focus:ring-amber-500 outline-none bg-white disabled:bg-gray-100" disabled>
+                                            <option value="">-</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-sm font-semibold mb-1">Sampai *</label>
+                                        <select id="input-ayat-akhir" required class="w-full px-4 py-2.5 rounded-lg border border-yellow-300 focus:ring-2 focus:ring-amber-500 outline-none bg-white disabled:bg-gray-100" disabled>
+                                            <option value="">-</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-5 bg-amber-50 p-4 rounded-xl border border-amber-200">
+                                <div><label class="block text-sm font-semibold mb-1 text-center">Kelancaran (1-100)</label><input type="number" id="input-kelancaran" min="1" max="100" required class="w-full px-4 py-2.5 rounded-lg border border-amber-300 text-center"></div>
+                                <div><label class="block text-sm font-semibold mb-1 text-center">Tajwid (1-100)</label><input type="number" id="input-tajwid" min="1" max="100" required class="w-full px-4 py-2.5 rounded-lg border border-amber-300 text-center"></div>
+                            </div>
+                            <button type="submit" class="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all">Simpan Laporan</button>
+                        </form>
+                    </div>
+                </section>
+
+                <section id="view-riwayat" class="admin-view hidden">
+                    <h2 class="text-2xl font-bold text-white mb-6 drop-shadow-md">Riwayat Global Seluruh Santri</h2>
+                    <div class="bg-white rounded-2xl shadow-sm border border-yellow-100 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-amber-100 text-amber-800 border-b border-amber-200">
+                                        <th class="p-4 font-bold text-sm whitespace-nowrap">Tanggal</th>
+                                        <th class="p-4 font-bold text-sm">Nama Santri</th>
+                                        <th class="p-4 font-bold text-sm">Surah & Ayat</th>
+                                        <th class="p-4 font-bold text-sm text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="table-body-admin" class="divide-y divide-gray-100 text-sm">
+                                    <!-- Data Admin dirender disini -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <nav class="md:hidden fixed bottom-0 w-full bg-white border-t border-yellow-200 z-50 flex justify-around pb-safe pt-1 shadow-md">
+            <button onclick="switchAdminTab('dashboard')" id="nav-mobile-dashboard" class="nav-btn-mobile flex-1 py-3 flex flex-col items-center text-amber-600"><i class="fas fa-chart-pie text-xl mb-1"></i><span class="text-[10px]">Dasbor</span></button>
+            <button onclick="switchAdminTab('input')" id="nav-mobile-input" class="nav-btn-mobile flex-1 py-3 flex flex-col items-center text-gray-400"><i class="fas fa-plus text-xl mb-1"></i><span class="text-[10px]">Input</span></button>
+            <button onclick="switchAdminTab('riwayat')" id="nav-mobile-riwayat" class="nav-btn-mobile flex-1 py-3 flex flex-col items-center text-gray-400"><i class="fas fa-list-check text-xl mb-1"></i><span class="text-[10px]">Riwayat</span></button>
+        </nav>
+    </div>
+
+    <!-- SCRIPT UTAMA -->
+    <script>
+        // === DATABASE 114 SURAH 30 JUZ ===
+        const daftarSurah = [
+            {"nama":"Al-Fatihah","ayat":7},{"nama":"Al-Baqarah","ayat":286},{"nama":"Ali 'Imran","ayat":200},{"nama":"An-Nisa'","ayat":176},{"nama":"Al-Ma'idah","ayat":120},{"nama":"Al-An'am","ayat":165},{"nama":"Al-A'raf","ayat":206},{"nama":"Al-Anfal","ayat":75},{"nama":"At-Taubah","ayat":129},{"nama":"Yunus","ayat":109},{"nama":"Hud","ayat":123},{"nama":"Yusuf","ayat":111},{"nama":"Ar-Ra'd","ayat":43},{"nama":"Ibrahim","ayat":52},{"nama":"Al-Hijr","ayat":99},{"nama":"An-Nahl","ayat":128},{"nama":"Al-Isra'","ayat":111},{"nama":"Al-Kahf","ayat":110},{"nama":"Maryam","ayat":98},{"nama":"Taha","ayat":135},{"nama":"Al-Anbiya'","ayat":112},{"nama":"Al-Hajj","ayat":78},{"nama":"Al-Mu'minun","ayat":118},{"nama":"An-Nur","ayat":64},{"nama":"Al-Furqan","ayat":77},{"nama":"Asy-Syu'ara'","ayat":227},{"nama":"An-Naml","ayat":93},{"nama":"Al-Qasas","ayat":88},{"nama":"Al-'Ankabut","ayat":69},{"nama":"Ar-Rum","ayat":60},{"nama":"Luqman","ayat":34},{"nama":"As-Sajdah","ayat":30},{"nama":"Al-Ahzab","ayat":73},{"nama":"Saba'","ayat":54},{"nama":"Fatir","ayat":45},{"nama":"Ya Sin","ayat":83},{"nama":"As-Saffat","ayat":182},{"nama":"Sad","ayat":88},{"nama":"Az-Zumar","ayat":75},{"nama":"Ghafir","ayat":85},{"nama":"Fussilat","ayat":54},{"nama":"Asy-Syura","ayat":53},{"nama":"Az-Zukhruf","ayat":89},{"nama":"Ad-Dukhan","ayat":59},{"nama":"Al-Jasiyah","ayat":37},{"nama":"Al-Ahqaf","ayat":35},{"nama":"Muhammad","ayat":38},{"nama":"Al-Fath","ayat":29},{"nama":"Al-Hujurat","ayat":18},{"nama":"Qaf","ayat":45},{"nama":"Az-Zariyat","ayat":60},{"nama":"At-Tur","ayat":49},{"nama":"An-Najm","ayat":62},{"nama":"Al-Qamar","ayat":55},{"nama":"Ar-Rahman","ayat":78},{"nama":"Al-Waqi'ah","ayat":96},{"nama":"Al-Hadid","ayat":29},{"nama":"Al-Mujadilah","ayat":22},{"nama":"Al-Hasyr","ayat":24},{"nama":"Al-Mumtahanah","ayat":13},{"nama":"As-Saff","ayat":14},{"nama":"Al-Jumu'ah","ayat":11},{"nama":"Al-Munafiqun","ayat":11},{"nama":"At-Tagabun","ayat":18},{"nama":"At-Talaq","ayat":12},{"nama":"At-Tahrim","ayat":12},{"nama":"Al-Mulk","ayat":30},{"nama":"Al-Qalam","ayat":52},{"nama":"Al-Haqqah","ayat":52},{"nama":"Al-Ma'arij","ayat":44},{"nama":"Nuh","ayat":28},{"nama":"Al-Jinn","ayat":28},{"nama":"Al-Muzzammil","ayat":20},{"nama":"Al-Muddassir","ayat":56},{"nama":"Al-Qiyamah","ayat":40},{"nama":"Al-Insan","ayat":31},{"nama":"Al-Mursalat","ayat":50},{"nama":"An-Naba'","ayat":40},{"nama":"An-Nazi'at","ayat":46},{"nama":"'Abasa","ayat":42},{"nama":"At-Takwir","ayat":29},{"nama":"Al-Infitar","ayat":19},{"nama":"Al-Mutaffifin","ayat":36},{"nama":"Al-Insyiqaq","ayat":25},{"nama":"Al-Buruj","ayat":22},{"nama":"At-Tariq","ayat":17},{"nama":"Al-A'la","ayat":19},{"nama":"Al-Gasyiyah","ayat":26},{"nama":"Al-Fajr","ayat":30},{"nama":"Al-Balad","ayat":20},{"nama":"Asy-Syams","ayat":15},{"nama":"Al-Lail","ayat":21},{"nama":"Ad-Duha","ayat":11},{"nama":"Asy-Syarh","ayat":8},{"nama":"At-Tin","ayat":8},{"nama":"Al-'Alaq","ayat":19},{"nama":"Al-Qadr","ayat":5},{"nama":"Al-Bayyinah","ayat":8},{"nama":"Az-Zalzalah","ayat":8},{"nama":"Al-'Adiyat","ayat":11},{"nama":"Al-Qari'ah","ayat":11},{"nama":"At-Takasur","ayat":8},{"nama":"Al-'Asr","ayat":3},{"nama":"Al-Humazah","ayat":9},{"nama":"Al-Fil","ayat":5},{"nama":"Quraisy","ayat":4},{"nama":"Al-Ma'un","ayat":7},{"nama":"Al-Kausar","ayat":3},{"nama":"Al-Kafirun","ayat":6},{"nama":"An-Nasr","ayat":3},{"nama":"Al-Lahab","ayat":5},{"nama":"Al-Ikhlas","ayat":4},{"nama":"Al-Falaq","ayat":5},{"nama":"An-Nas","ayat":6}
+        ];
+
+        // LOGIKA DROPDOWN OTOMATIS
+        const selectSurah = document.getElementById('input-surah');
+        const selectAyatAwal = document.getElementById('input-ayat-awal');
+        const selectAyatAkhir = document.getElementById('input-ayat-akhir');
+
+        // Mengisi pilihan 114 Surah
+        daftarSurah.forEach(surah => {
+            const option = document.createElement('option');
+            option.value = surah.nama;
+            option.textContent = `${surah.nama} (${surah.ayat} Ayat)`;
+            selectSurah.appendChild(option);
+        });
+
+        // Mengubah pilihan ayat sesuai dengan surah yang dipilih
+        selectSurah.addEventListener('change', function() {
+            selectAyatAwal.innerHTML = '<option value="">-</option>';
+            selectAyatAkhir.innerHTML = '<option value="">-</option>';
+            
+            const namaSurahDipilih = this.value;
+            const surahData = daftarSurah.find(s => s.nama === namaSurahDipilih);
+
+            if(surahData) {
+                for(let i = 1; i <= surahData.ayat; i++) {
+                    const optAwal = document.createElement('option'); optAwal.value = i; optAwal.textContent = i;
+                    const optAkhir = document.createElement('option'); optAkhir.value = i; optAkhir.textContent = i;
+                    selectAyatAwal.appendChild(optAwal);
+                    selectAyatAkhir.appendChild(optAkhir);
+                }
+                selectAyatAwal.disabled = false;
+                selectAyatAkhir.disabled = false;
+            } else {
+                selectAyatAwal.disabled = true;
+                selectAyatAkhir.disabled = true;
+            }
+        });
+
+
+        // === SISTEM STORAGE LOKAL ===
+        let memoryStorage = {};
+        function safeGet(key) { try { return localStorage.getItem(key) || memoryStorage[key]; } catch(e) { return memoryStorage[key]; } }
+        function safeSet(key, value) { try { localStorage.setItem(key, value); } catch(e) { memoryStorage[key] = value; } }
+        function safeRemove(key) { try { localStorage.removeItem(key); } catch(e) { delete memoryStorage[key]; } }
+
+        const USERS_KEY = 'mutabaah_admins';
+        const DATA_KEY = 'mutabaah_data_hafalan';
+        
+        if(!safeGet(USERS_KEY)) { safeSet(USERS_KEY, JSON.stringify([{username: 'Admin', pin: '1234'}])); }
+        if(!safeGet(DATA_KEY)) { safeSet(DATA_KEY, JSON.stringify([])); }
+
+        // === UI HELPERS ===
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('hidden', 'toast-exit');
+            toast.classList.add('toast-enter');
+            setTimeout(() => { toast.classList.remove('toast-enter'); toast.classList.add('toast-exit'); }, 3000);
+        }
+
+        function toggleAuth(mode) {
+            if(mode === 'register') {
+                document.getElementById('form-login').classList.replace('block', 'hidden');
+                document.getElementById('form-register').classList.replace('hidden', 'block');
+                document.getElementById('auth-title').innerText = "Daftar Admin Baru";
+            } else {
+                document.getElementById('form-register').classList.replace('block', 'hidden');
+                document.getElementById('form-login').classList.replace('hidden', 'block');
+                document.getElementById('auth-title').innerText = "Portal Ustadz";
+            }
+        }
+
+        function showLoginScreen() {
+            document.getElementById('public-container').classList.add('hidden');
+            document.getElementById('login-container').classList.remove('hidden');
+        }
+
+        function hideLoginScreen() {
+            document.getElementById('login-container').classList.add('hidden');
+            document.getElementById('public-container').classList.remove('hidden');
+        }
+
+        // === OTENTIKASI ADMIN ===
+        document.getElementById('form-login').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const user = document.getElementById('login-username').value.trim();
+            const pin = document.getElementById('login-pin').value;
+            
+            let users = JSON.parse(safeGet(USERS_KEY));
+            const validUser = users.find(u => u.username.toLowerCase() === user.toLowerCase() && u.pin === pin);
+            
+            if(validUser) {
+                safeSet('active_admin', JSON.stringify(validUser));
+                document.getElementById('form-login').reset();
+                setupAdminArea();
+            } else {
+                alert("Login gagal! Username atau PIN salah.");
+            }
+        });
+
+        document.getElementById('form-register').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const user = document.getElementById('reg-username').value.trim();
+            const pin = document.getElementById('reg-pin').value;
+            
+            let users = JSON.parse(safeGet(USERS_KEY));
+            if(users.find(u => u.username.toLowerCase() === user.toLowerCase())) { alert("Username sudah ada!"); return; }
+
+            users.push({username: user, pin: pin});
+            safeSet(USERS_KEY, JSON.stringify(users));
+            alert("Akun Admin dibuat! Silakan login.");
+            document.getElementById('form-register').reset();
+            toggleAuth('login');
+        });
+
+        function logoutAdmin() {
+            if(confirm("Yakin ingin keluar dari mode Admin?")) {
+                safeRemove('active_admin');
+                document.getElementById('admin-container').classList.add('hidden');
+                document.getElementById('public-container').classList.remove('hidden');
+                renderPublicTable(); 
+            }
+        }
+
+        function setupAdminArea() {
+            const admin = JSON.parse(safeGet('active_admin'));
+            if(!admin) return;
+
+            document.getElementById('login-container').classList.add('hidden');
+            document.getElementById('public-container').classList.add('hidden');
+            document.getElementById('admin-container').classList.remove('hidden');
+            
+            document.querySelectorAll('.admin-display-name').forEach(el => el.innerText = admin.username);
+            renderAdminTable();
+            switchAdminTab('dashboard');
+        }
+
+        function switchAdminTab(tabId) {
+            document.querySelectorAll('.admin-view').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`view-${tabId}`).classList.remove('hidden');
+            
+            document.querySelectorAll('.nav-btn-desktop').forEach(el => { el.classList.remove('bg-amber-800', 'text-white'); el.classList.add('text-amber-100'); });
+            const deskBtn = document.getElementById(`nav-desktop-${tabId}`);
+            if(deskBtn) { deskBtn.classList.add('bg-amber-800', 'text-white'); deskBtn.classList.remove('text-amber-100'); }
+
+            document.querySelectorAll('.nav-btn-mobile').forEach(el => { el.classList.remove('text-amber-600'); el.classList.add('text-gray-400'); });
+            const mobBtn = document.getElementById(`nav-mobile-${tabId}`);
+            if(mobBtn) { mobBtn.classList.add('text-amber-600'); mobBtn.classList.remove('text-gray-400'); }
+        }
+
+        // === CRUD DATA HAFALAN ===
+        document.getElementById('form-setoran').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nilaiK = parseInt(document.getElementById('input-kelancaran').value);
+            const nilaiT = parseInt(document.getElementById('input-tajwid').value);
+            const nilaiRata = Math.round((nilaiK + nilaiT) / 2);
+
+            // Susun format ayat (contoh: "1-10" atau "5" jika awal dan akhir sama)
+            const ayatAwal = selectAyatAwal.value;
+            const ayatAkhir = selectAyatAkhir.value;
+            const ayatDigabung = (ayatAwal === ayatAkhir) ? ayatAwal : `${ayatAwal}-${ayatAkhir}`;
+
+            const payload = {
+                id: Date.now(),
+                timestamp: new Date().toLocaleDateString('id-ID', {day: '2-digit', month: 'short', year: 'numeric'}),
+                namaSantri: document.getElementById('input-nama').value.trim(),
+                jenis: document.getElementById('input-jenis').value,
+                surah: document.getElementById('input-surah').value,
+                ayat: ayatDigabung,
+                nilaiRata: nilaiRata
+            };
+
+            let data = JSON.parse(safeGet(DATA_KEY));
+            data.unshift(payload); 
+            safeSet(DATA_KEY, JSON.stringify(data));
+            
+            showToast("Setoran berhasil disimpan!");
+            this.reset();
+            
+            // Reset dropdown ayat
+            selectAyatAwal.innerHTML = '<option value="">-</option>';
+            selectAyatAkhir.innerHTML = '<option value="">-</option>';
+            selectAyatAwal.disabled = true;
+            selectAyatAkhir.disabled = true;
+
+            renderAdminTable();
+        });
+
+        function hapusData(id) {
+            if(confirm("Hapus catatan ini?")) {
+                let data = JSON.parse(safeGet(DATA_KEY));
+                data = data.filter(d => d.id !== id);
+                safeSet(DATA_KEY, JSON.stringify(data));
+                renderAdminTable();
+                showToast("Data dihapus.");
+            }
+        }
+
+        // === RENDER TABEL ===
+        function renderAdminTable() {
+            const data = JSON.parse(safeGet(DATA_KEY));
+            document.getElementById('stat-total-setoran').innerText = data.length;
+            const tbody = document.getElementById('table-body-admin');
+            tbody.innerHTML = '';
+
+            if(data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500 italic">Belum ada data setoran.</td></tr>`;
+                return;
+            }
+
+            data.forEach(item => {
+                tbody.innerHTML += `
+                    <tr class="hover:bg-amber-50/50 transition-colors">
+                        <td class="p-4 text-gray-500 text-xs">${item.timestamp}</td>
+                        <td class="p-4 font-semibold text-gray-800">${item.namaSantri}</td>
+                        <td class="p-4"><span class="block text-amber-700 font-bold">${item.surah}</span><span class="text-xs text-gray-500">Ayat ${item.ayat} (${item.jenis})</span></td>
+                        <td class="p-4 text-center"><button onclick="hapusData(${item.id})" class="text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded"><i class="fas fa-trash-alt"></i></button></td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderPublicTable() {
+            const searchQuery = document.getElementById('search-santri').value.toLowerCase().trim();
+            const data = JSON.parse(safeGet(DATA_KEY));
+            const tbody = document.getElementById('table-body-public');
+            tbody.innerHTML = '';
+
+            const filteredData = searchQuery === '' ? data : data.filter(item => item.namaSantri.toLowerCase().includes(searchQuery));
+
+            if(filteredData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-gray-500"><i class="fas fa-search text-3xl mb-3 text-gray-300 block"></i>${searchQuery ? 'Data anak tidak ditemukan.' : 'Silakan ketik nama santri di atas.'}</td></tr>`;
+                return;
+            }
+
+            filteredData.forEach(item => {
+                let badgeColor = item.nilaiRata >= 85 ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : (item.nilaiRata >= 70 ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-red-100 text-red-700 border-red-200');
+                
+                tbody.innerHTML += `
+                    <tr class="hover:bg-amber-50/50 transition-colors">
+                        <td class="p-4 text-gray-500 text-xs">${item.timestamp}</td>
+                        <td class="p-4 font-bold text-gray-800 capitalize">${item.namaSantri}</td>
+                        <td class="p-4">
+                            <span class="block text-amber-700 font-bold">${item.surah} <span class="text-gray-600 font-normal">ayat</span> ${item.ayat}</span>
+                            <span class="text-xs text-gray-500">${item.jenis}</span>
+                        </td>
+                        <td class="p-4 text-center"><span class="px-3 py-1 rounded-full text-xs font-bold border ${badgeColor}">${item.nilaiRata}</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        document.getElementById('search-santri').addEventListener('keyup', renderPublicTable);
+
+        // === INISIALISASI SPLASH SCREEN ===
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                document.getElementById('splash-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('splash-screen').classList.add('hidden');
+                    
+                    const loggedInAdmin = safeGet('active_admin');
+                    if(loggedInAdmin) {
+                        setupAdminArea();
+                    } else {
+                        document.getElementById('public-container').classList.remove('hidden');
+                        renderPublicTable(); 
+                    }
+                }, 500);
+            }, 1200);
+        });
+    </script>
+</body>
+</html>
